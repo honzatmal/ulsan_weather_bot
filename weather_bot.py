@@ -3,70 +3,79 @@ import os
 from datetime import datetime, timedelta
 
 def get_weather():
-    # 1. GitHub Secrets 정보 불러오기
+    # 1. 환경 변수 설정
     api_key = os.environ.get('WEATHER_API_KEY')
     bot_token = os.environ.get('TELEGRAM_BOT_TOKEN')
     chat_id = os.environ.get('TELEGRAM_CHAT_ID')
     
-    # 2. 한국 시간 계산[cite: 2]
+    # 2. 날짜 계산 (오늘 및 어제)
     now_utc = datetime.utcnow()
     now_kst = now_utc + timedelta(hours=9)
+    yesterday_kst = now_kst - timedelta(days=1)
+    
     formatted_date = now_kst.strftime("%Y년 %m월 %d일 (%a)")
     formatted_time = now_kst.strftime("%H시 %M분")
+    yesterday_str = yesterday_kst.strftime("%Y-%m-%d")
     
     city = "Ulsan"
-    # 최저/최고 기온 데이터를 위해 'forecast.json' 호출[cite: 2]
-    url = f"http://api.weatherapi.com/v1/forecast.json?key={api_key}&q={city}&days=1&aqi=yes&lang=ko"
     
     try:
-        response = requests.get(url)
-        data = response.json()
+        # 오늘 예보 및 현재 날씨 데이터
+        url = f"http://api.weatherapi.com/v1/forecast.json?key={api_key}&q={city}&days=1&aqi=yes&lang=ko"
+        response = requests.get(url).json()
         
-        # 데이터 파싱[cite: 2]
-        current = data['current']
-        condition = current['condition']['text']
+        current = response['current']
         temp_now = current['temp_c']
+        condition = current['condition']['text']
         
-        # 오늘의 최저/최고 기온 (이 부분이 추가되었습니다)[cite: 2]
-        day_data = data['forecast']['forecastday'][0]['day']
+        # 오늘의 최저/최고 기온[cite: 2]
+        day_data = response['forecast']['forecastday'][0]['day']
         temp_max = day_data['maxtemp_c']
         temp_min = day_data['mintemp_c']
         
-        # 시간별 강수 예보 확인[cite: 2]
-        forecast_hours = data['forecast']['forecastday'][0]['hour']
-        rain_times = []
-        for hour_data in forecast_hours:
-            hour_time = datetime.strptime(hour_data['time'], '%Y-%m-%d %H:%M')
-            if hour_time > now_kst:
-                if hour_data['will_it_rain'] or hour_data['will_it_snow']:
-                    rain_times.append(hour_time.strftime("%H시"))
+        # 3. 어제의 동일 시간대 기온 가져오기[cite: 2]
+        history_url = f"http://api.weatherapi.com/v1/history.json?key={api_key}&q={city}&dt={yesterday_str}&lang=ko"
+        history_response = requests.get(history_url).json()
+        # 어제 같은 시간(정시 기준)의 기온 추출[cite: 2]
+        temp_yesterday = history_response['forecast']['forecastday'][0]['hour'][now_kst.hour]['temp_c']
         
-        if rain_times:
-            rain_info = f"☔ 강수 예보: {', '.join(rain_times[:5])} 내외"
+        # 기온 차이 계산[cite: 2]
+        temp_diff = round(temp_now - temp_yesterday, 1)
+        if temp_diff > 0:
+            diff_text = f"어제보다 {temp_diff}도 높아요 📈"
+        elif temp_diff < 0:
+            diff_text = f"어제보다 {abs(temp_diff)}도 낮아요 📉"
         else:
-            rain_info = "☀️ 오늘은 비 소식이 없습니다."
+            diff_text = "어제와 기온이 같아요 ↔️"
 
-        # 미세먼지 정보[cite: 2]
+        # 4. 강수 예보 확인[cite: 2]
+        forecast_hours = response['forecast']['forecastday'][0]['hour']
+        rain_times = [datetime.strptime(h['time'], '%Y-%m-%d %H:%M').strftime("%H시") 
+                      for h in forecast_hours if datetime.strptime(h['time'], '%Y-%m-%d %H:%M') > now_kst 
+                      and (h['will_it_rain'] or h['will_it_snow'])]
+        
+        rain_info = f"☔ 강수 예보: {', '.join(rain_times[:5])} 내외" if rain_times else "☀️ 오늘은 비 소식이 없습니다."
+
+        # 미세먼지[cite: 2]
         aqi_index = current['air_quality']['us-epa-index']
         aqi_text = {1: "좋음", 2: "보통", 3: "민감군 주의", 4: "나쁨", 5: "매우 나쁨", 6: "위험"}.get(aqi_index, "정보 없음")
 
-        # 3. 메시지 구성 (최고/최저 기온 라인 확인)[cite: 2]
+        # 5. 메시지 구성[cite: 2]
         message = (
             f"📅 {formatted_date} {formatted_time}\n"
             f"📍 {city} 날씨 리포트\n"
             f"━━━━━━━━━━━━━━━\n"
             f"🌡️ 현재 기온: {temp_now}°C ({condition})\n"
+            f"🌡️ {diff_text}\n"
             f"📈 최고: {temp_max}°C / 📉 최저: {temp_min}°C\n"
             f"😷 미세먼지: {aqi_text}\n"
             f"📢 {rain_info}\n"
             f"━━━━━━━━━━━━━━━\n"
-            f"오늘도 건강하고 행복한 하루 되세요! 😊"
+            f"오늘도 힘찬 하루 되세요! 💪"
         )
         
-        # 4. 텔레그램 전송[cite: 2]
         send_url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
-        payload = {"chat_id": chat_id, "text": message}
-        requests.post(send_url, json=payload)
+        requests.post(send_url, json={"chat_id": chat_id, "text": message})
         
     except Exception as e:
         print(f"Error: {e}")
