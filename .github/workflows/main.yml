@@ -1,25 +1,20 @@
 name: Daily Weather Automation
-
 on:
   schedule:
     - cron: '30 21 * * *'
   workflow_dispatch:
-
 jobs:
   run_bot:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.9'
-
       - name: Install dependencies
         run: pip install requests
-
       - name: Run weather script
         env:
           WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
