@@ -1,8 +1,9 @@
 name: Daily Weather Automation
 on:
   schedule:
+    # 한국 시간 기준 오전 06:30 (UTC 21:30)
     - cron: '30 21 * * *'
-  workflow_dispatch:
+  workflow_dispatch: # 수동 실행 버튼
 jobs:
   run_bot:
     runs-on: ubuntu-latest
