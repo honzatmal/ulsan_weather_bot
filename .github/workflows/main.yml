@@ -1,0 +1,29 @@
+name: Daily Weather Automation
+
+on:
+  schedule:
+    # 한국 시간 기준 오전 06:30 실행 (UTC 기준 21:30)
+    - cron: '30 21 * * *'
+  workflow_dispatch: # 수동 실행 버튼 활성화
+
+jobs:
+  run_bot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 코드 체크아웃[cite: 1]
+        uses: actions/checkout@v3
+
+      - name: 파이썬 설정[cite: 1]
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: 필수 라이브러리 설치[cite: 1]
+        run: pip install requests
+
+      - name: 날씨 봇 실행[cite: 1]
+        env:
+          WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: python weather_bot.py
