@@ -10,20 +10,20 @@ jobs:
   run_bot:
     runs-on: ubuntu-latest
     steps:
-      - name: 코드 체크아웃[cite: 1]
-        uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3[cite: 1]
 
-      - name: 파이썬 설정[cite: 1]
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.9'
+          python-version: '3.9'[cite: 1]
 
-      - name: 필수 라이브러리 설치[cite: 1]
-        run: pip install requests
+      - name: Install dependencies
+        run: pip install requests[cite: 1]
 
-      - name: 날씨 봇 실행[cite: 1]
+      - name: Run weather script
         env:
           WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: python weather_bot.py
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}[cite: 1]
+        run: python weather_bot.py[cite: 1]
